@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Christ Temple Check-In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JavaScript Client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // Configure Tailwind with church branding colors from logo
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'church-purple': '#6b21a8',
+            'church-gold': '#f59e0b',
+            'church-dark-purple': '#581c87',
+            'church-light-purple': '#a855f7',
+            'church-cream': '#fef3c7'
+          }
+        }
+      }
+    }
+
+    // Initialize Supabase client
+    // TODO: Replace with your actual Supabase URL and anon key
+    const supabaseUrl = 'https://qmsovdydhcdotcmovfet.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtc292ZHlkaGNkb3RjbW92ZmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MzY3OTAsImV4cCI6MjA3MTMxMjc5MH0.kuM5VpyZtbcG8XEA1HGt1gtU_PwmVSstQwVuvv56PzE'
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+  </script>
+  <style>
+    /* Custom animations for smooth transitions */
+    .fade-in { animation: fadeIn 0.5s ease-in; }
+    .slide-up { animation: slideUp 0.6s ease-out; }
+    .bounce-in { animation: bounceIn 0.8s ease-out; }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #6b21a8;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Custom dropdown styling */
+    .custom-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      background-size: 1.5em 1.5em;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-indigo-100 text-gray-900 min-h-screen p-4">
+  <!-- Main Container -->
+  <div class="flex items-center justify-center min-h-screen">
+    
+    <!-- Check-in Form Container -->
+    <div id="form-container" class="bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 slide-up">
+      <!-- Header with Logo -->
+      <div class="text-center mb-8">
+        <div class="w-24 h-24 mx-auto mb-4">
+          <img src="church-logo.png" alt="Christ Temple Christian Life Center" class="w-full h-full object-contain">
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Christ Temple</h1>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Christian Life Center</h1>
+        <p class="text-gray-600">We're glad you're here today!</p>
+      </div>
+
+      <!-- Loading State (hidden by default) -->
+      <div id="loading-state" class="hidden text-center py-8">
+        <div class="spinner mx-auto mb-4"></div>
+        <p class="text-gray-600">Checking you in...</p>
+      </div>
+
+      <!-- Check-in Form -->
+      <form id="checkin-form" class="space-y-6">
+        <!-- Member/Visitor Selection -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-3">I am a:</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-church-purple transition-all duration-200">
+              <input type="radio" name="userType" value="member" required class="sr-only">
+              <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3 flex items-center justify-center">
+                <div class="w-2 h-2 bg-church-purple rounded-full hidden radio-checked"></div>
+              </div>
+              <span class="font-medium">Member</span>
+            </label>
+            <label class="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-church-purple transition-all duration-200">
+              <input type="radio" name="userType" value="visitor" required class="sr-only">
+              <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3 flex items-center justify-center">
+                <div class="w-2 h-2 bg-church-purple rounded-full hidden radio-checked"></div>
+              </div>
+              <span class="font-medium">Visitor</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Name Fields -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="firstName" class="block text-sm font-semibold text-gray-700 mb-2">First Name *</label>
+            <input 
+              type="text" 
+              id="firstName" 
+              name="firstName" 
+              required
+              placeholder="First name"
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 placeholder-gray-400"
+            />
+          </div>
+          <div>
+            <label for="lastName" class="block text-sm font-semibold text-gray-700 mb-2">Last Name *</label>
+            <input 
+              type="text" 
+              id="lastName" 
+              name="lastName" 
+              required
+              placeholder="Last name"
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 placeholder-gray-400"
+            />
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div>
+          <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address *</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            required
+            placeholder="your.email@example.com"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 placeholder-gray-400"
+          />
+        </div>
+
+        <div>
+          <label for="phone" class="block text-sm font-semibold text-gray-700 mb-2">Phone Number *</label>
+          <input 
+            type="tel" 
+            id="phone" 
+            name="phone" 
+            required
+            placeholder="(555) 123-4567"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 placeholder-gray-400"
+          />
+        </div>
+
+        
+
+        <!-- Visitor-specific questions (hidden by default) -->
+        <div id="visitor-questions" class="hidden space-y-6">
+          <!-- Visit Frequency -->
+          <div>
+            <label for="visitFrequency" class="block text-sm font-semibold text-gray-700 mb-2">Is this your first time visiting? *</label>
+            <select 
+              id="visitFrequency" 
+              name="visitFrequency" 
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 custom-select"
+            >
+              <option value="">Select an option</option>
+              <option value="first-time">First-time visitor</option>
+              <option value="second-time">Second-time visitor</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <!-- How did you hear about us -->
+          <div>
+            <label for="hearAbout" class="block text-sm font-semibold text-gray-700 mb-2">How did you hear about us? *</label>
+            <select 
+              id="hearAbout" 
+              name="hearAbout" 
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-church-purple focus:border-church-purple transition-all duration-200 text-gray-800 custom-select"
+            >
+              <option value="">Select an option</option>
+              <option value="invited">Invited by Family/Friend</option>
+              <option value="zone-newsletter">The Zone Newsletter</option>
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="youtube">YouTube</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        
+        <button 
+          type="submit"
+          class="w-full bg-gradient-to-r from-church-purple to-church-gold text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-lg"
+        >
+          Check In
+        </button>
+      </form>
+
+      <!-- Return Visitor Message -->
+      <div id="return-visitor" class="hidden mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <p class="text-green-800 text-sm text-center">
+          Welcome back! We're checking you in automatically.
+        </p>
+      </div>
+    </div>
+
+    <!-- Confirmation Screen (hidden by default) -->
+    <div id="confirmation" class="hidden bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-2xl w-full max-w-lg text-center border border-white/20 bounce-in">
+      <!-- Success Icon -->
+      <div class="w-20 h-20 bg-gradient-to-r from-church-green to-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
+        <span class="text-3xl">✅</span>
+      </div>
+      
+      <h2 class="text-2xl font-bold text-gray-800 mb-3">Thanks for checking in!</h2>
+      <p class="text-gray-600 mb-8">We're glad you're here. Enjoy the service!</p>
+      
+      <!-- Action Buttons -->
+      <div class="space-y-3">
+        <a href="https://linktr.ee/yourchurch" target="_blank" class="block">
+          <button class="w-full bg-gradient-to-r from-church-purple to-church-gold text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200">
+            Return to Church Links
+          </button>
+        </a>
+        
+        <button 
+          id="new-checkin-btn"
+          class="w-full bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-xl hover:bg-gray-200 transition-all duration-200"
+        >
+          Check In Another Person
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Section -->
+  <script>
+    // DOM Elements
+    const form = document.getElementById('checkin-form');
+    const formContainer = document.getElementById('form-container');
+    const confirmation = document.getElementById('confirmation');
+    const loadingState = document.getElementById('loading-state');
+    const returnVisitor = document.getElementById('return-visitor');
+    const newCheckinBtn = document.getElementById('new-checkin-btn');
+    const visitorQuestions = document.getElementById('visitor-questions');
+    const visitFrequencySelect = document.getElementById('visitFrequency');
+    const hearAboutSelect = document.getElementById('hearAbout');
+
+    // Radio button styling
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        // Remove checked class from all radio buttons
+        document.querySelectorAll('.radio-checked').forEach(check => {
+          check.classList.add('hidden');
+        });
+        
+        // Add checked class to selected radio button
+        if (this.checked) {
+          this.parentElement.querySelector('.radio-checked').classList.remove('hidden');
+        }
+
+        // Show/hide visitor questions
+        if (this.value === 'visitor') {
+          visitorQuestions.classList.remove('hidden');
+          // Make visitor fields required
+          visitFrequencySelect.required = true;
+          hearAboutSelect.required = true;
+        } else {
+          visitorQuestions.classList.add('hidden');
+          // Remove required from visitor fields for members
+          visitFrequencySelect.required = false;
+          hearAboutSelect.required = false;
+        }
+      });
+    });
+
+    // Check for existing user on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      checkForExistingUser();
+    });
+
+    // Check if user has checked in before
+    function checkForExistingUser() {
+      // TODO: Replace with backend check (Supabase, Firebase, etc.)
+      // Example: Check user ID from URL parameters or stored session
+      const urlParams = new URLSearchParams(window.location.search);
+      const userId = urlParams.get('user_id');
+      
+      if (userId) {
+        // TODO: Fetch user data from backend
+        // const userData = await fetchUserFromBackend(userId);
+        // if (userData) {
+        //   showReturnVisitor(userData);
+        // }
+        
+        // For now, check localStorage
+        const storedUser = localStorage.getItem('church_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          showReturnVisitor(userData);
+        }
+      }
+    }
+
+    // Show return visitor message and auto-checkin
+    function showReturnVisitor(userData) {
+      returnVisitor.classList.remove('hidden');
+      
+      // Auto-checkin after 2 seconds
+      setTimeout(() => {
+        performCheckin(userData);
+      }, 2000);
+    }
+
+    // Function to determine service type based on current time
+    function getServiceType() {
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const hour = now.getHours();
+      
+      if (dayOfWeek === 0) { // Sunday
+        if (hour >= 8 && hour < 13) {
+          return 'sunday-morning';
+        } else if (hour >= 17 && hour < 23) {
+          return 'sunday-evening';
+        }
+      } else if (dayOfWeek === 2) { // Tuesday
+        if (hour >= 18 && hour < 21) {
+          return 'tuesday-bible-study';
+        }
+      }
+      
+      // Default for other times
+      return 'other';
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const userData = {
+        userType: formData.get('userType'),
+        firstName: formData.get('firstName').trim(),
+        lastName: formData.get('lastName').trim(),
+        email: formData.get('email').trim(),
+        phone: formData.get('phone').trim(),
+        visitFrequency: formData.get('visitFrequency'),
+        hearAbout: formData.get('hearAbout'),
+        serviceType: getServiceType() // Automatically determine service type
+      };
+
+      // Validate required fields
+      if (!userData.userType || !userData.firstName || !userData.lastName || !userData.email || !userData.phone) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      // Validate visitor-specific fields
+      if (userData.userType === 'visitor') {
+        if (!userData.visitFrequency || !userData.hearAbout) {
+          alert('Please fill in all visitor information');
+          return;
+        }
+      }
+
+      // Show loading state
+      form.classList.add('hidden');
+      loadingState.classList.remove('hidden');
+
+      // Perform check-in
+      await performCheckin(userData);
+    });
+
+    // Perform the actual check-in with Supabase
+    async function performCheckin(userData) {
+      try {
+                 // Send data to Supabase
+         const { data, error } = await supabase
+           .from('checkins')
+           .insert([
+             {
+               user_type: userData.userType,
+               first_name: userData.firstName,
+               last_name: userData.lastName,
+               email: userData.email,
+               phone: userData.phone,
+               service_type: userData.serviceType,
+               visit_frequency: userData.visitFrequency,
+               hear_about: userData.hearAbout,
+               checkin_time: new Date().toISOString(),
+               created_at: new Date().toISOString()
+             }
+           ]);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error('Failed to save check-in data');
+        }
+
+        console.log('Check-in saved successfully:', data);
+
+        // Store user data for future recognition (optional)
+        localStorage.setItem('church_user', JSON.stringify(userData));
+        
+        // TODO: Send analytics or tracking data
+        // await trackCheckin(userData);
+
+        // Show confirmation
+        loadingState.classList.add('hidden');
+        formContainer.classList.add('hidden');
+        confirmation.classList.remove('hidden');
+
+      } catch (error) {
+        console.error('Check-in failed:', error);
+        alert('Check-in failed. Please try again.');
+        
+        // Reset form
+        loadingState.classList.add('hidden');
+        form.classList.remove('hidden');
+      }
+    }
+
+    // Handle "Check In Another Person" button
+    newCheckinBtn.addEventListener('click', () => {
+      confirmation.classList.add('hidden');
+      formContainer.classList.remove('hidden');
+      form.classList.remove('hidden');
+      form.reset();
+      visitorQuestions.classList.add('hidden');
+      
+      // Reset radio button styling
+      document.querySelectorAll('.radio-checked').forEach(check => {
+        check.classList.add('hidden');
+      });
+    });
+
+    // TODO: Add QR code scanning functionality
+    // function initializeQRScanner() {
+    //   // Use libraries like html5-qrcode or jsQR
+    //   // Scan QR code and extract user ID
+    //   // Then call checkForExistingUser() with the ID
+    // }
+
+    // TODO: Add NFC card reading functionality
+    // function initializeNFCReader() {
+    //   // Use Web NFC API if available
+    //   // Read NFC card and extract user ID
+    //   // Then call checkForExistingUser() with the ID
+    // }
+
+    // TODO: Add offline support with service worker
+    // if ('serviceWorker' in navigator) {
+    //   navigator.serviceWorker.register('/sw.js');
+    // }
+
+    // TODO: Add push notifications for future events
+    // function requestNotificationPermission() {
+    //   if ('Notification' in window) {
+    //     Notification.requestPermission();
+    //   }
+    // }
+  </script>
+</body>
+</html>
