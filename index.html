@@ -302,36 +302,51 @@
     });
 
     // Check if user has checked in before
-    function checkForExistingUser() {
-      // TODO: Replace with backend check (Supabase, Firebase, etc.)
-      // Example: Check user ID from URL parameters or stored session
-      const urlParams = new URLSearchParams(window.location.search);
-      const userId = urlParams.get('user_id');
+    async function checkForExistingUser() {
+      // Check localStorage for existing user data
+      const storedUser = localStorage.getItem('church_user');
+      console.log('Checking localStorage for user data:', storedUser);
       
-      if (userId) {
-        // TODO: Fetch user data from backend
-        // const userData = await fetchUserFromBackend(userId);
-        // if (userData) {
-        //   showReturnVisitor(userData);
-        // }
-        
-        // For now, check localStorage
-        const storedUser = localStorage.getItem('church_user');
-        if (storedUser) {
+      if (storedUser) {
+        try {
           const userData = JSON.parse(storedUser);
+          console.log('Found returning user:', userData.firstName);
+          
+          // Show return visitor message and auto-checkin
           showReturnVisitor(userData);
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          // If there's an error parsing the data, remove it and show the form
+          localStorage.removeItem('church_user');
+          showCheckinForm();
         }
+      } else {
+        console.log('No stored user data found, showing check-in form');
+        // No stored user data, show the normal check-in form
+        showCheckinForm();
       }
     }
 
     // Show return visitor message and auto-checkin
     function showReturnVisitor(userData) {
+      // Hide the form and show return visitor message
+      form.classList.add('hidden');
       returnVisitor.classList.remove('hidden');
+      
+      // Update the return visitor message with personalized greeting
+      const returnVisitorMessage = returnVisitor.querySelector('p');
+      returnVisitorMessage.textContent = `Welcome back, ${userData.firstName}! We're checking you in automatically.`;
       
       // Auto-checkin after 2 seconds
       setTimeout(() => {
         performCheckin(userData);
       }, 2000);
+    }
+
+    // Show the normal check-in form
+    function showCheckinForm() {
+      form.classList.remove('hidden');
+      returnVisitor.classList.add('hidden');
     }
 
     // Function to determine service type based on current time
@@ -394,10 +409,12 @@
       await performCheckin(userData);
     });
 
-    // Perform the actual check-in with Supabase
-    async function performCheckin(userData) {
-      try {
-                 // Send data to Supabase
+         // Perform the actual check-in with Supabase
+     async function performCheckin(userData) {
+       try {
+         console.log('Attempting to save user data:', userData);
+         
+         // Send data to Supabase
          const { data, error } = await supabase
            .from('checkins')
            .insert([
@@ -415,23 +432,55 @@
              }
            ]);
 
-        if (error) {
-          console.error('Supabase error:', error);
-          throw new Error('Failed to save check-in data');
-        }
+                 if (error) {
+           console.error('Supabase error:', error);
+           throw new Error('Failed to save check-in data');
+         }
 
-        console.log('Check-in saved successfully:', data);
+         // Supabase insert returns null for data on successful insert
+         // This is normal behavior - the data is saved but not returned
+         console.log('Check-in saved successfully!');
+         console.log('Supabase response:', { data, error });
+         
+         // Verify the data was actually saved by checking if we can query it
+         const { data: verifyData, error: verifyError } = await supabase
+           .from('checkins')
+           .select('*')
+           .eq('email', userData.email)
+           .order('created_at', { ascending: false })
+           .limit(1);
+         
+         if (verifyError) {
+           console.error('Error verifying data:', verifyError);
+         } else {
+           console.log('Verified saved data:', verifyData);
+         }
 
-        // Store user data for future recognition (optional)
-        localStorage.setItem('church_user', JSON.stringify(userData));
-        
-        // TODO: Send analytics or tracking data
-        // await trackCheckin(userData);
+                   // Store user data for future recognition
+          // This creates a unique identifier for the user based on their email and name
+          const userIdentifier = {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            phone: userData.phone,
+            userType: userData.userType,
+            // Add a timestamp for when they first checked in
+            firstCheckin: new Date().toISOString()
+          };
+          localStorage.setItem('church_user', JSON.stringify(userIdentifier));
+          console.log('Saved user data to localStorage:', userIdentifier);
+         
+         // TODO: Send analytics or tracking data
+         // await trackCheckin(userData);
 
-        // Show confirmation
-        loadingState.classList.add('hidden');
-        formContainer.classList.add('hidden');
-        confirmation.classList.remove('hidden');
+         // Show personalized confirmation
+         loadingState.classList.add('hidden');
+         formContainer.classList.add('hidden');
+         confirmation.classList.remove('hidden');
+         
+         // Update confirmation message with personalized greeting
+         const confirmationTitle = confirmation.querySelector('h2');
+         confirmationTitle.textContent = `Thanks for checking in, ${userData.firstName}!`;
 
       } catch (error) {
         console.error('Check-in failed:', error);
@@ -445,6 +494,14 @@
 
     // Handle "Check In Another Person" button
     newCheckinBtn.addEventListener('click', () => {
+      // Clear stored user data so they can check in as a different person
+      localStorage.removeItem('church_user');
+      
+      // Reset the confirmation message to default
+      const confirmationTitle = confirmation.querySelector('h2');
+      confirmationTitle.textContent = 'Thanks for checking in!';
+      
+      // Show the form again
       confirmation.classList.add('hidden');
       formContainer.classList.remove('hidden');
       form.classList.remove('hidden');
